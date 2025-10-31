@@ -1,8 +1,9 @@
 name: "Terraform Drift Check"
 
 on:
-  # schedule:
-  #   - cron: "*/5 * * * *"   
+  schedule:
+    - cron: "*/5 * * * *"   
+  
   workflow_dispatch:
 
 jobs:
@@ -33,7 +34,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.12.2"
-          terraform_wrapper: false
 
       - name: Terraform init
         run: terraform init -input=false
