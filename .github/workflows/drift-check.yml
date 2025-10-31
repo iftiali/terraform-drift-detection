@@ -64,7 +64,7 @@ jobs:
         if: ${{ steps.drift.outputs.exit_code == '2' }}
         run: |
           echo "Infrastructure drift detected."
-          python3 scripts/send_plan_email.py
+          python3 scripts/send_drift_email.py
         env:
           AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
           SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
