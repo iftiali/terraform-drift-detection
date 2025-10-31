@@ -2,14 +2,13 @@ name: "Terraform Drift Check"
 
 on:
   # schedule:
-  #   - cron: "*/5 * * * *"   # every 5 minutes (testing)
+  #   - cron: "*/5 * * * *"   
   workflow_dispatch:
 
 jobs:
   drift_check:
     name: "Scheduled Terraform Drift Detection"
     runs-on: ubuntu-latest
-    environment: terraform-plan
 
     permissions:
       id-token: write
