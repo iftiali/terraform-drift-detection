@@ -16,7 +16,6 @@ jobs:
   terraform:
     name: "Run Terraform OIDC Setup"
     runs-on: ubuntu-latest
-    environment: terraform-deploy
     permissions:
       id-token: write
       contents: read
