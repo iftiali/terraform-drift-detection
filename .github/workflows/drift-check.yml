@@ -2,16 +2,14 @@ name: "Terraform Drift Check"
 
 on:
   schedule:
-    # Every 5 minutes (for testing)
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *"   # every 5 minutes (testing)
+  workflow_dispatch:
 
-  workflow_dispatch: # (optional manual trigger)
-  
 jobs:
   drift_check:
     name: "Scheduled Terraform Drift Detection"
     runs-on: ubuntu-latest
-    environment: terraform-plan
+    environment: terraform-deploy
 
     permissions:
       id-token: write
@@ -46,13 +44,11 @@ jobs:
       - name: Terraform plan (drift check)
         id: drift
         run: |
-          set +e
-          terraform plan -no-color -detailed-exitcode -input=false -out drift-plan > drift.log 2>&1
-          EXIT_CODE=$?
+          terraform plan -no-color -detailed-exitcode -input=false -out drift-plan | tee drift.log || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+          echo "Terraform plan exit code: $EXIT_CODE"
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           terraform show -no-color drift-plan > tfdriftfile.txt || true
-          set -e
-          exit 0  # prevent failure — handle below
 
       - name: Upload drift log
         uses: actions/upload-artifact@v4
@@ -61,7 +57,7 @@ jobs:
           path: ./s3/drift.log
 
       - name: Send Drift Detected Email
-        if: steps.drift.outputs.exit_code == '2'
+        if: ${{ steps.drift.outputs.exit_code == '2' }}
         run: python3 scripts/send_plan_email.py
         env:
           AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
@@ -69,13 +65,13 @@ jobs:
           RECIPIENT_EMAIL: ${{ vars.RECIPIENT_EMAIL }}
 
       - name: Log Drift to CloudWatch
-        if: steps.drift.outputs.exit_code == '2'
+        if: ${{ steps.drift.outputs.exit_code == '2' }}
         run: python3 scripts/log_to_cloudwatch.py drift.log /github/terraform/drift
 
       - name: No Drift Detected
-        if: steps.drift.outputs.exit_code == '0'
+        if: ${{ steps.drift.outputs.exit_code == '0' }}
         run: echo "No infrastructure drift detected."
 
       - name: Handle Terraform Errors
-        if: steps.drift.outputs.exit_code == '1'
+        if: ${{ steps.drift.outputs.exit_code == '1' }}
         run: echo "Terraform plan failed. Check drift.log for details." && exit 1
