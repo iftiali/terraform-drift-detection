@@ -1,8 +1,8 @@
 name: "Terraform Drift Check"
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes (testing)
+  # schedule:
+  #   - cron: "*/5 * * * *"   # every 5 minutes (testing)
   workflow_dispatch:
 
 jobs:
