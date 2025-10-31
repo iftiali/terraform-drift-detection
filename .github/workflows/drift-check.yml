@@ -45,13 +45,14 @@ jobs:
         id: drift
         run: |
           set +e
-          terraform plan -no-color -detailed-exitcode -input=false -out drift-plan | tee drift.log
-          TERRAFORM_EXIT=${PIPESTATUS[0]}
-          set -e 
-          echo "Terraform exited with code: $TERRAFORM_EXIT"
-          echo "exit_code=$TERRAFORM_EXIT" >> $GITHUB_OUTPUT
+          bash -c '
+            terraform plan -no-color -detailed-exitcode -input=false -out drift-plan
+            echo $? > plan_exit_code
+          ' | tee drift.log
+          EXIT_CODE=$(cat plan_exit_code)
+          echo "Terraform exited with code: $EXIT_CODE"
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
           terraform show -no-color drift-plan > tfdriftfile.txt || true
-          cat drift.log
 
       - name: Upload drift log
         uses: actions/upload-artifact@v4
