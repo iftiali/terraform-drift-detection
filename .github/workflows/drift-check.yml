@@ -9,7 +9,7 @@ jobs:
   drift_check:
     name: "Scheduled Terraform Drift Detection"
     runs-on: ubuntu-latest
-    environment: terraform-deploy
+    environment: terraform-plan
 
     permissions:
       id-token: write
@@ -44,9 +44,11 @@ jobs:
       - name: Terraform plan (drift check)
         id: drift
         run: |
-          terraform plan -no-color -detailed-exitcode -input=false -out drift-plan | tee drift.log || EXIT_CODE=$?
-          EXIT_CODE=${EXIT_CODE:-0}
-          echo "Terraform plan exit code: $EXIT_CODE"
+          set +e
+          terraform plan -no-color -detailed-exitcode -input=false -out drift-plan | tee drift.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          set -e 
+          echo "Terraform exited with code: $EXIT_CODE"
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           terraform show -no-color drift-plan > tfdriftfile.txt || true
 
@@ -58,7 +60,9 @@ jobs:
 
       - name: Send Drift Detected Email
         if: ${{ steps.drift.outputs.exit_code == '2' }}
-        run: python3 scripts/send_plan_email.py
+        run: |
+          echo "Infrastructure drift detected."
+          python3 scripts/send_plan_email.py
         env:
           AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
           SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
@@ -66,12 +70,16 @@ jobs:
 
       - name: Log Drift to CloudWatch
         if: ${{ steps.drift.outputs.exit_code == '2' }}
-        run: python3 scripts/log_to_cloudwatch.py drift.log /github/terraform/drift
+        run: |
+          echo "Infrastructure drift detected."
+          python3 scripts/log_to_cloudwatch.py drift.log /github/terraform/drift
 
       - name: No Drift Detected
         if: ${{ steps.drift.outputs.exit_code == '0' }}
         run: echo "No infrastructure drift detected."
 
       - name: Handle Terraform Errors
-        if: ${{ steps.drift.outputs.exit_code == '1' }}
-        run: echo "Terraform plan failed. Check drift.log for details." && exit 1
+        if: steps.drift.outputs.exit_code != '0' && steps.drift.outputs.exit_code != '2'
+        run: |
+          echo "Terraform plan failed. Check drift.log for details." 
+          exit 1
